@@ -1,156 +1,79 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- */
 'use strict';
 
+const OnboardComponent = require('./AppComponents/OnboardComponent');
+const CommonComponents = require('./commonComponents/CommonComponents');
+const GHService = require('./networkService/GithubServices');
+const RootTab = require('./AppComponents/RootTabComponent');
 
 import React, {
-    AppRegistry,
     Component,
-    StyleSheet,
-    Text,
-    View,
-    Image,
-    ScrollView,
-    TouchableHighlight,
-    TextInput,
-    ActivityIndicatorIOS
+    AppRegistry
 } from 'react-native';
 
-const Colors = require('./commonComponents/Colors');
-const Platform = require('Platform');
+const LoginState = {
+    pending: 0,
+    onboard: 1,
+    unOnboard: 2,
+    needLogin: 3,
+}
 
 class HelloWorld extends Component {
-
     constructor(props) {
         super(props);
         this.state = {
-            username: 'aaa',
-            loadingError: null,
-            loading: false
+            userState: LoginState.pending
         }
     }
 
-    onNameChange(text) {
-        this.setState({
-            username: text
-        });
+    componentWillMount() {
+        GHService.queryLoginState()
+            .then(value => {
+                let lst = LoginState.pending;
+                if (value.login.length > 0) {
+                    lst = LoginState.onboard;
+                } else {
+                    lst = LoginState.unOnboard;
+                }
+
+                console.log('login userstate is: ' + JSON.stringify(lst));
+
+                this.setState({
+                    userState: lst,
+                });
+            })
     }
 
-    submitOnboard() {
-        if (this.state.username.length == 0) return;
+    didOnboard(user, needLogin) {
+        let lst = user == null ? LoginState.unOnboard : LoginState.onboard;
+        if (needLogin) lst = LoginState.needLogin;
 
         this.setState({
-            loadingError: null,
-            loading: true,
+            userState: lst,
         });
     }
 
     render() {
-        let failedDesc;
-        if (this.state.loadingError) {
-            failedDesc = (
-                <Text
-                    style={{color: Colors.red}}>{this.state.loadingError.message}
-                </Text>
-            );
-        }
+        let cp;
 
-        let loadingCp;
-        if (this.state.loading) {
-            loadingCp = <ActivityIndicatorIOS/>
-        }
+        switch (this.state.userState) {
+            case LoginState.pending: {
+                cp = CommonComponents.renderLoadingView();
+            }
+                break;
 
-        return (
-            <ScrollView style={{backgroundColor: 'white'}}>
-                <View style={styles.container}>
-                    <Image
-                        style={styles.welcomeImage}
-                        source={require('./AppIcons/ios/iTunesArtwork.png')}
-                    />
-                    <View style={styles.loginContainer}>
-                        <TextInput
-                            autoCapitalize={'none'}
-                            autoCorrect={false}
-                            clearButtonMode={'while-editing'}
-                            style={styles.textInput}
-                            returnKeyType={'done'}
-                            onChangeText={(text) => this.onNameChange(text)}
-                            onSubmitEditing={() => this.submitOnboard()}
-                            placeholder={'Github username (NOT EMAIL!)'}
-                        />
-                        <TouchableHighlight
-                            style={styles.go}
-                            onPress={() => this.submitOnboard()}
-                            underlayColor={Colors.backGray}
-                        >
-                            <Text style={[styles.nameAndPwd, {'textAlign': 'center'}]}>Go!</Text>
-                        </TouchableHighlight>
-                    </View>
-                    {loadingCp}
-                    {failedDesc}
-                </View>
-            </ScrollView>
-        );
+            case LoginState.onboard: {
+                cp = <RootTab />;
+            }
+                break;
+
+            case LoginState.unOnboard: {
+                cp = <OnboardComponent didOnboard={(user, needLogin) => this.didOnboard(user, needLogin)}/>;
+            }
+                break;
+        }
+        return cp;
     }
 }
 
-const styles = StyleSheet.create({
-    container: {
-        top: 40,
-        flexDirection: 'column',
-        alignItems: 'center',
-        height: 300,
-        backgroundColor: 'white',
-    },
-
-    welcomeImage: {
-        width: 150,
-        height: 150,
-        backgroundColor: Colors.backGray,
-    },
-
-    loginContainer: {
-        flexDirection: 'row',
-        margin: 30,
-        height: 44,
-        alignSelf: 'stretch',
-        marginTop: 20,
-    },
-
-    textInput: {
-        margin: 5,
-        fontSize: 15,
-        borderWidth: 1,
-        height: 30,
-        alignSelf: 'stretch',
-        marginTop: 5,
-        marginBottom: 10,
-        borderRadius: 4,
-        padding: 3,
-        borderColor: Colors.borderColor,
-        flex: 1
-    },
-
-    go: {
-        margin: 5,
-        marginBottom: 10,
-        flexDirection: 'column',
-        backgroundColor: 'white',
-        borderWidth: 1,
-        justifyContent: 'center',
-        alignItems: 'stretch',
-        borderRadius: 4,
-        borderColor: Colors.borderColor,
-    },
-
-    nameAndPwd: {
-        fontSize: 17,
-        fontWeight: 'bold',
-        color: 'black',
-        width: 40,
-    },
-});
 
 AppRegistry.registerComponent('HelloWorld', () => HelloWorld);
